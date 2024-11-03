@@ -34,8 +34,8 @@ use libsignal_service::websocket::SignalWebSocket;
 use libsignal_service::zkgroup::groups::{GroupMasterKey, GroupSecretParams};
 use libsignal_service::zkgroup::profiles::ProfileKey;
 use libsignal_service::{cipher, AccountManager, Profile, ServiceAddress};
-use rand::rngs::StdRng;
-use rand::SeedableRng;
+use rand::rngs::ThreadRng;
+use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
 use tokio::sync::Mutex;
@@ -47,8 +47,8 @@ use crate::serde::serde_profile_key;
 use crate::store::{ContentsStore, Sticker, StickerPack, StickerPackManifest, Store, Thread};
 use crate::{model::groups::Group, AvatarBytes, Error, Manager};
 
-type ServiceCipher<S> = cipher::ServiceCipher<S, StdRng>;
-type MessageSender<S> = libsignal_service::prelude::MessageSender<S, StdRng>;
+type ServiceCipher<S> = cipher::ServiceCipher<S, ThreadRng>;
+type MessageSender<S> = libsignal_service::prelude::MessageSender<S, ThreadRng>;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RegistrationType {
@@ -146,7 +146,7 @@ impl<S: Store> Manager<S, Registered> {
             .ok_or(Error::NotYetRegisteredError)?;
 
         let mut manager = Self {
-            rng: StdRng::from_entropy(),
+            rng: thread_rng(),
             store,
             state: Registered::with_data(registration_data),
         };
@@ -296,7 +296,7 @@ impl<S: Store> Manager<S, Registered> {
                 pni_registration_id
             } else {
                 info!("migrating to PNI");
-                let pni_registration_id = generate_registration_id(&mut StdRng::from_entropy());
+                let pni_registration_id = generate_registration_id(&mut thread_rng());
                 self.store.save_registration_data(&self.state.data)?;
                 pni_registration_id
             };
@@ -1200,7 +1200,7 @@ impl<S: Store> Manager<S, Registered> {
             unidentified_websocket,
             self.identified_push_service(),
             self.new_service_cipher_aci(),
-            self.rng.clone(),
+            thread_rng(),
             aci_protocol_store,
             ServiceAddress::from_aci(self.state.data.service_ids.aci),
             ServiceAddress::from_pni(self.state.data.service_ids.pni),
@@ -1213,7 +1213,7 @@ impl<S: Store> Manager<S, Registered> {
     fn new_service_cipher_aci(&self) -> ServiceCipher<S::AciStore> {
         ServiceCipher::new(
             self.store.aci_protocol_store(),
-            self.rng.clone(),
+            thread_rng(),
             self.state
                 .service_configuration()
                 .unidentified_sender_trust_root,
@@ -1225,7 +1225,7 @@ impl<S: Store> Manager<S, Registered> {
     fn new_service_cipher_pni(&self) -> ServiceCipher<S::PniStore> {
         ServiceCipher::new(
             self.store.pni_protocol_store(),
-            self.rng.clone(),
+            thread_rng(),
             self.state
                 .service_configuration()
                 .unidentified_sender_trust_root,

@@ -2,8 +2,7 @@ use libsignal_service::configuration::{ServiceConfiguration, SignalServers};
 use libsignal_service::prelude::phonenumber::PhoneNumber;
 use libsignal_service::push_service::{PushService, VerificationTransport};
 use rand::distributions::{Alphanumeric, DistString};
-use rand::rngs::StdRng;
-use rand::SeedableRng;
+use rand::thread_rng;
 use tracing::trace;
 
 use crate::store::Store;
@@ -80,7 +79,7 @@ impl<S: Store> Manager<S, Registration> {
         store.clear_registration()?;
 
         // generate a random alphanumeric 24 chars password
-        let mut rng = StdRng::from_entropy();
+        let mut rng = thread_rng();
         let password = Alphanumeric.sample_string(&mut rng, 24);
 
         let service_configuration: ServiceConfiguration = signal_servers.into();
